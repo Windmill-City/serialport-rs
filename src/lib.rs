@@ -130,7 +130,7 @@ impl SerialPortBuilder {
     }
 }
 
-pub trait SerialPort: Send + io::Read + io::Write + AsRawHandle + IntoRawHandle {
+pub trait SerialPort: Send + AsRawHandle + IntoRawHandle {
     fn name(&self) -> String;
     fn baudrate(&self) -> Result<u32>;
     fn data_bits(&self) -> Result<DataBits>;

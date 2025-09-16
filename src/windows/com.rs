@@ -2,7 +2,7 @@ use std::{
     io::{self, Error},
     mem::MaybeUninit,
     os::windows::prelude::{AsRawHandle, IntoRawHandle, RawHandle},
-    ptr::null_mut,
+    ptr::{null, null_mut},
 };
 
 use windows_sys::Win32::{
@@ -12,10 +12,14 @@ use windows_sys::Win32::{
         ONESTOPBIT, PURGE_RXABORT, PURGE_RXCLEAR, PURGE_TXABORT, PURGE_TXCLEAR, PurgeComm, SETDTR,
         SETRTS, SetCommBreak, TWOSTOPBITS,
     },
-    Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, HANDLE, INVALID_HANDLE_VALUE},
+    Foundation::{
+        CloseHandle, ERROR_IO_PENDING, GENERIC_READ, GENERIC_WRITE, GetLastError, HANDLE,
+        INVALID_HANDLE_VALUE,
+    },
     Storage::FileSystem::{
         CreateFileW, FILE_FLAG_OVERLAPPED, FlushFileBuffers, OPEN_EXISTING, ReadFile, WriteFile,
     },
+    System::{IO::OVERLAPPED, Threading::CreateEventW},
 };
 
 use crate::{
@@ -23,10 +27,11 @@ use crate::{
     windows::dcb::{self, BitOperation},
 };
 
-#[derive(Debug)]
 pub struct COMPort {
     path: String,
     handle: HANDLE,
+    r_overlap: OVERLAPPED,
+    w_overlap: OVERLAPPED,
 }
 
 impl COMPort {
@@ -65,9 +70,28 @@ impl COMPort {
         dcb::set_flow_control(&mut dcb, builder.flow_control)?;
         dcb::set_dcb(handle, dcb)?;
 
+        let r_event = unsafe { CreateEventW(null_mut(), 1, 0, null()) };
+        let w_event = unsafe { CreateEventW(null_mut(), 1, 0, null()) };
+
+        if r_event == 0 as HANDLE || w_event == 0 as HANDLE {
+            unsafe {
+                CloseHandle(r_event as *mut _);
+                CloseHandle(w_event as *mut _);
+            }
+            return Err(Error::last_os_error().into());
+        }
+
+        let mut r_overlap: OVERLAPPED = unsafe { std::mem::zeroed() };
+        let mut w_overlap: OVERLAPPED = unsafe { std::mem::zeroed() };
+
+        r_overlap.hEvent = r_event;
+        w_overlap.hEvent = w_event;
+
         Ok(COMPort {
             path: builder.path.to_owned(),
             handle: handle as HANDLE,
+            r_overlap,
+            w_overlap,
         })
     }
 
@@ -108,60 +132,6 @@ impl IntoRawHandle for COMPort {
     fn into_raw_handle(self) -> RawHandle {
         let Self { handle, .. } = self;
         handle as RawHandle
-    }
-}
-
-impl io::Read for COMPort {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let mut len: u32 = 0;
-
-        match unsafe {
-            ReadFile(
-                self.handle,
-                buf.as_mut_ptr(),
-                buf.len() as u32,
-                &mut len,
-                null_mut(),
-            )
-        } {
-            0 => Err(io::Error::last_os_error()),
-            _ => {
-                if len != 0 {
-                    Ok(len as usize)
-                } else {
-                    Err(io::Error::new(
-                        io::ErrorKind::TimedOut,
-                        "Operation timed out",
-                    ))
-                }
-            }
-        }
-    }
-}
-
-impl io::Write for COMPort {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let mut len: u32 = 0;
-
-        match unsafe {
-            WriteFile(
-                self.handle,
-                buf.as_ptr(),
-                buf.len() as u32,
-                &mut len,
-                null_mut(),
-            )
-        } {
-            0 => Err(io::Error::last_os_error()),
-            _ => Ok(len as usize),
-        }
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        match unsafe { FlushFileBuffers(self.handle) } {
-            0 => Err(io::Error::last_os_error()),
-            _ => Ok(()),
-        }
     }
 }
 
