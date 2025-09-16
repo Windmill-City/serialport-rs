@@ -1,0 +1,207 @@
+use std::{
+    io,
+    os::windows::io::{AsRawHandle, IntoRawHandle},
+    time::Duration,
+};
+
+#[cfg(unix)]
+mod posix;
+#[cfg(unix)]
+pub use posix::{BreakDuration, TTYPort};
+
+#[cfg(windows)]
+mod windows;
+#[cfg(windows)]
+pub use windows::COMPort;
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("I/O error occurred")]
+    Io(#[from] io::Error),
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
+    #[error("Not implemented for target platform")]
+    NotImplemented,
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum DataBits {
+    Five,
+    Six,
+    Seven,
+    Eight,
+    Unknown,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Parity {
+    None,
+    Odd,
+    Even,
+    Unknown,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum StopBits {
+    One,
+    OnePointFive,
+    Two,
+    Unknown,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum FlowControl {
+    None,
+    Software,
+    Hardware,
+    Unknown,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Clear {
+    Input,
+    Output,
+    All,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SerialPortBuilder {
+    path: String,
+    baudrate: u32,
+    data_bits: DataBits,
+    flow_control: FlowControl,
+    parity: Parity,
+    stop_bits: StopBits,
+    timeout: Duration,
+}
+
+impl SerialPortBuilder {
+    #[must_use]
+    pub fn path(mut self, path: &str) -> Self {
+        path.clone_into(&mut self.path);
+        self
+    }
+
+    #[must_use]
+    pub fn baud_rate(mut self, baud_rate: u32) -> Self {
+        self.baudrate = baud_rate;
+        self
+    }
+
+    #[must_use]
+    pub fn data_bits(mut self, data_bits: DataBits) -> Self {
+        self.data_bits = data_bits;
+        self
+    }
+
+    #[must_use]
+    pub fn flow_control(mut self, flow_control: FlowControl) -> Self {
+        self.flow_control = flow_control;
+        self
+    }
+
+    #[must_use]
+    pub fn parity(mut self, parity: Parity) -> Self {
+        self.parity = parity;
+        self
+    }
+
+    #[must_use]
+    pub fn stop_bits(mut self, stop_bits: StopBits) -> Self {
+        self.stop_bits = stop_bits;
+        self
+    }
+
+    #[must_use]
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = timeout;
+        self
+    }
+
+    pub fn open(self) -> Result<Box<dyn SerialPort>> {
+        #[cfg(unix)]
+        return posix::TTYPort::open(&self).map(|p| Box::new(p) as Box<dyn SerialPort>);
+
+        #[cfg(windows)]
+        return windows::COMPort::open(&self).map(|p| Box::new(p) as Box<dyn SerialPort>);
+
+        #[cfg(not(any(unix, windows)))]
+        Err(Error::NotImplemented)
+    }
+}
+
+pub trait SerialPort: Send + io::Read + io::Write + AsRawHandle + IntoRawHandle {
+    fn name(&self) -> String;
+    fn baudrate(&self) -> Result<u32>;
+    fn data_bits(&self) -> Result<DataBits>;
+    fn flow_control(&self) -> Result<FlowControl>;
+    fn parity(&self) -> Result<Parity>;
+    fn stop_bits(&self) -> Result<StopBits>;
+    fn timeout(&self) -> Duration;
+    fn set_baud_rate(&mut self, baud_rate: u32) -> Result<()>;
+    fn set_data_bits(&mut self, data_bits: DataBits) -> Result<()>;
+    fn set_flow_control(&mut self, flow_control: FlowControl) -> Result<()>;
+    fn set_parity(&mut self, parity: Parity) -> Result<()>;
+    fn set_stop_bits(&mut self, stop_bits: StopBits) -> Result<()>;
+    fn set_timeout(&mut self, timeout: Duration) -> Result<()>;
+    fn set_rts(&mut self, level: bool) -> Result<()>;
+    fn set_dtr(&mut self, level: bool) -> Result<()>;
+    fn set_break(&mut self, level: bool) -> Result<()>;
+    fn cts(&mut self) -> Result<bool>;
+    fn dsr(&mut self) -> Result<bool>;
+    fn ri(&mut self) -> Result<bool>;
+    fn cd(&mut self) -> Result<bool>;
+    fn bytes_to_read(&self) -> Result<u32>;
+    fn bytes_to_write(&self) -> Result<u32>;
+    fn clear(&self, buffer_to_clear: Clear) -> Result<()>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct UsbPortInfo {
+    pub vid: u16,
+    pub pid: u16,
+    pub serial: Option<String>,
+    pub manufacturer: Option<String>,
+    pub product: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PortInfo {
+    // path
+    pub path: String,
+    // friendly name
+    pub name: String,
+}
+
+pub fn new<'a>(path: &str, baudrate: u32) -> SerialPortBuilder {
+    SerialPortBuilder {
+        path: path.into(),
+        baudrate,
+        data_bits: DataBits::Eight,
+        flow_control: FlowControl::None,
+        parity: Parity::None,
+        stop_bits: StopBits::One,
+        timeout: Duration::from_millis(0),
+    }
+}
+
+pub fn available_ports() -> Result<Vec<PortInfo>> {
+    #[cfg(unix)]
+    return crate::posix::available_ports();
+
+    #[cfg(windows)]
+    return crate::windows::available_ports();
+
+    #[cfg(not(any(unix, windows)))]
+    Err(Error::NotImplemented)
+}
