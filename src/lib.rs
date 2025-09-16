@@ -1,7 +1,6 @@
 use std::{
     io,
     os::windows::io::{AsRawHandle, IntoRawHandle},
-    time::Duration,
 };
 
 #[cfg(unix)]
