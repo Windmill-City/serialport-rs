@@ -80,7 +80,6 @@ pub struct SerialPortBuilder {
     flow_control: FlowControl,
     parity: Parity,
     stop_bits: StopBits,
-    timeout: Duration,
 }
 
 impl SerialPortBuilder {
@@ -120,12 +119,6 @@ impl SerialPortBuilder {
         self
     }
 
-    #[must_use]
-    pub fn timeout(mut self, timeout: Duration) -> Self {
-        self.timeout = timeout;
-        self
-    }
-
     pub fn open(self) -> Result<Box<dyn SerialPort>> {
         #[cfg(unix)]
         return posix::TTYPort::open(&self).map(|p| Box::new(p) as Box<dyn SerialPort>);
@@ -145,13 +138,11 @@ pub trait SerialPort: Send + io::Read + io::Write + AsRawHandle + IntoRawHandle 
     fn flow_control(&self) -> Result<FlowControl>;
     fn parity(&self) -> Result<Parity>;
     fn stop_bits(&self) -> Result<StopBits>;
-    fn timeout(&self) -> Duration;
     fn set_baud_rate(&mut self, baud_rate: u32) -> Result<()>;
     fn set_data_bits(&mut self, data_bits: DataBits) -> Result<()>;
     fn set_flow_control(&mut self, flow_control: FlowControl) -> Result<()>;
     fn set_parity(&mut self, parity: Parity) -> Result<()>;
     fn set_stop_bits(&mut self, stop_bits: StopBits) -> Result<()>;
-    fn set_timeout(&mut self, timeout: Duration) -> Result<()>;
     fn set_rts(&mut self, level: bool) -> Result<()>;
     fn set_dtr(&mut self, level: bool) -> Result<()>;
     fn set_break(&mut self, level: bool) -> Result<()>;
@@ -162,16 +153,6 @@ pub trait SerialPort: Send + io::Read + io::Write + AsRawHandle + IntoRawHandle 
     fn bytes_to_read(&self) -> Result<u32>;
     fn bytes_to_write(&self) -> Result<u32>;
     fn clear(&self, buffer_to_clear: Clear) -> Result<()>;
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct UsbPortInfo {
-    pub vid: u16,
-    pub pid: u16,
-    pub serial: Option<String>,
-    pub manufacturer: Option<String>,
-    pub product: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
@@ -191,7 +172,6 @@ pub fn new<'a>(path: &str, baudrate: u32) -> SerialPortBuilder {
         flow_control: FlowControl::None,
         parity: Parity::None,
         stop_bits: StopBits::One,
-        timeout: Duration::from_millis(0),
     }
 }
 

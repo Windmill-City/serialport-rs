@@ -3,15 +3,14 @@ use std::{
     mem::MaybeUninit,
     os::windows::prelude::{AsRawHandle, IntoRawHandle, RawHandle},
     ptr::null_mut,
-    time::Duration,
 };
 
 use windows_sys::Win32::{
     Devices::Communication::{
-        CLRDTR, CLRRTS, COMMTIMEOUTS, ClearCommBreak, ClearCommError, EVENPARITY,
-        EscapeCommFunction, GetCommModemStatus, MS_CTS_ON, MS_DSR_ON, MS_RING_ON, MS_RLSD_ON,
-        NOPARITY, ODDPARITY, ONESTOPBIT, PURGE_RXABORT, PURGE_RXCLEAR, PURGE_TXABORT,
-        PURGE_TXCLEAR, PurgeComm, SETDTR, SETRTS, SetCommBreak, SetCommTimeouts, TWOSTOPBITS,
+        CLRDTR, CLRRTS, ClearCommBreak, ClearCommError, EVENPARITY, EscapeCommFunction,
+        GetCommModemStatus, MS_CTS_ON, MS_DSR_ON, MS_RING_ON, MS_RLSD_ON, NOPARITY, ODDPARITY,
+        ONESTOPBIT, PURGE_RXABORT, PURGE_RXCLEAR, PURGE_TXABORT, PURGE_TXCLEAR, PurgeComm, SETDTR,
+        SETRTS, SetCommBreak, TWOSTOPBITS,
     },
     Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, HANDLE, INVALID_HANDLE_VALUE},
     Storage::FileSystem::{
@@ -28,7 +27,6 @@ use crate::{
 pub struct COMPort {
     path: String,
     handle: HANDLE,
-    timeout: Duration,
 }
 
 impl COMPort {
@@ -67,13 +65,10 @@ impl COMPort {
         dcb::set_flow_control(&mut dcb, builder.flow_control)?;
         dcb::set_dcb(handle, dcb)?;
 
-        let mut com = COMPort {
+        Ok(COMPort {
             path: builder.path.to_owned(),
             handle: handle as HANDLE,
-            timeout: Duration::ZERO,
-        };
-        com.set_timeout(builder.timeout)?;
-        Ok(com)
+        })
     }
 
     fn escape_comm_function(&mut self, function: u32) -> Result<()> {
@@ -90,11 +85,6 @@ impl COMPort {
             0 => Err(Error::last_os_error().into()),
             _ => Ok(status & pin != 0),
         }
-    }
-
-    fn timeout_constant(duration: Duration) -> u32 {
-        let milliseconds = duration.as_millis();
-        u128::min(milliseconds, u32::MAX as u128 - 1) as u32
     }
 }
 
@@ -226,10 +216,6 @@ impl SerialPort for COMPort {
         }
     }
 
-    fn timeout(&self) -> Duration {
-        self.timeout
-    }
-
     fn set_baud_rate(&mut self, baud_rate: u32) -> Result<()> {
         let mut dcb = dcb::get_dcb(self.handle)?;
         dcb::set_baud_rate(&mut dcb, baud_rate);
@@ -258,25 +244,6 @@ impl SerialPort for COMPort {
         let mut dcb = dcb::get_dcb(self.handle)?;
         dcb::set_stop_bits(&mut dcb, stop_bits)?;
         dcb::set_dcb(self.handle, dcb)
-    }
-
-    fn set_timeout(&mut self, timeout: Duration) -> Result<()> {
-        let timeout_constant = Self::timeout_constant(timeout);
-
-        let timeouts = COMMTIMEOUTS {
-            ReadIntervalTimeout: u32::MAX,
-            ReadTotalTimeoutMultiplier: u32::MAX,
-            ReadTotalTimeoutConstant: timeout_constant,
-            WriteTotalTimeoutMultiplier: 0,
-            WriteTotalTimeoutConstant: timeout_constant,
-        };
-
-        if unsafe { SetCommTimeouts(self.handle, &timeouts) } == 0 {
-            return Err(Error::last_os_error().into());
-        }
-
-        self.timeout = timeout;
-        Ok(())
     }
 
     fn set_rts(&mut self, level: bool) -> Result<()> {
