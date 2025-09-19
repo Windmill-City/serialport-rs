@@ -1,5 +1,4 @@
 use std::io::Error;
-use std::mem::MaybeUninit;
 use windows_sys::Win32::Devices::Communication::{
     DCB, EVENPARITY, GetCommState, NOPARITY, ODDPARITY, ONE5STOPBITS, ONESTOPBIT, SetCommState,
     TWOSTOPBITS,
@@ -188,7 +187,7 @@ pub fn default(dcb: &mut DCB) {
 }
 
 pub fn get_dcb(handle: HANDLE) -> Result<DCB> {
-    let mut dcb: DCB = unsafe { MaybeUninit::zeroed().assume_init() };
+    let mut dcb = DCB::default();
     dcb.DCBlength = std::mem::size_of::<DCB>() as u32;
 
     if unsafe { GetCommState(handle, &mut dcb) } != 0 {
