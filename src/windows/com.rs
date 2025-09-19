@@ -75,6 +75,7 @@ impl COMPort {
         Ok(com)
     }
 
+    /// Configurate DTR/RTS
     fn escape_comm_function(&mut self, function: u32) -> Result<()> {
         match unsafe { EscapeCommFunction(self.handle, function) } {
             0 => Err(Error::last_os_error().into()),
@@ -82,6 +83,7 @@ impl COMPort {
         }
     }
 
+    /// Read CTS/DSR & RI/CD
     fn read_pin(&mut self, pin: u32) -> Result<bool> {
         let mut status: u32 = 0;
 
