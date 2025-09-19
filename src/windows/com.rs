@@ -56,6 +56,11 @@ impl COMPort {
             return Err(Error::last_os_error().into());
         }
 
+        let com = COMPort {
+            path: builder.path.to_owned(),
+            handle: handle as HANDLE,
+        };
+
         let mut dcb = dcb::get_dcb(handle)?;
         dcb::default(&mut dcb);
         dcb::set_baud_rate(&mut dcb, builder.baudrate);
@@ -63,14 +68,9 @@ impl COMPort {
         dcb::set_parity(&mut dcb, builder.parity)?;
         dcb::set_stop_bits(&mut dcb, builder.stop_bits)?;
         dcb::set_flow_control(&mut dcb, builder.flow_control)?;
-        dcb::set_dcb(handle, dcb).inspect_err(|_| unsafe {
-            CloseHandle(handle);
-        })?;
+        dcb::set_dcb(handle, dcb)?;
 
-        Ok(COMPort {
-            path: builder.path.to_owned(),
-            handle: handle as HANDLE,
-        })
+        Ok(com)
     }
 
     fn escape_comm_function(&mut self, function: u32) -> Result<()> {
