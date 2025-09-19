@@ -102,8 +102,6 @@ impl Drop for COMPort {
     fn drop(&mut self) {
         unsafe {
             CloseHandle(self.handle);
-            CloseHandle(self.r_overlap.hEvent as *mut _);
-            CloseHandle(self.w_overlap.hEvent as *mut _);
         }
     }
 }
