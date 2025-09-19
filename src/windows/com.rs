@@ -62,6 +62,7 @@ impl COMPort {
             handle: handle as HANDLE,
         };
 
+        // Configure the port based on the builder settings
         let mut dcb = dcb::get_dcb(handle)?;
         dcb::default(&mut dcb);
         dcb::set_baud_rate(&mut dcb, builder.baudrate);
