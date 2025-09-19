@@ -15,7 +15,7 @@ pub use windows::COMPort;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("I/O error occurred")]
+    #[error(transparent)]
     Io(#[from] io::Error),
     #[error("Invalid input: {0}")]
     InvalidInput(String),

@@ -3,14 +3,15 @@ use std::{
     mem::MaybeUninit,
     os::windows::prelude::{AsRawHandle, IntoRawHandle, RawHandle},
     ptr::{null, null_mut},
+    u32,
 };
 
 use windows_sys::Win32::{
     Devices::Communication::{
-        CLRDTR, CLRRTS, ClearCommBreak, ClearCommError, EVENPARITY, EscapeCommFunction,
-        GetCommModemStatus, MS_CTS_ON, MS_DSR_ON, MS_RING_ON, MS_RLSD_ON, NOPARITY, ODDPARITY,
-        ONE5STOPBITS, ONESTOPBIT, PURGE_RXABORT, PURGE_RXCLEAR, PURGE_TXABORT, PURGE_TXCLEAR,
-        PurgeComm, SETDTR, SETRTS, SetCommBreak, TWOSTOPBITS,
+        CLRDTR, CLRRTS, COMMTIMEOUTS, ClearCommBreak, ClearCommError, EVENPARITY,
+        EscapeCommFunction, GetCommModemStatus, MS_CTS_ON, MS_DSR_ON, MS_RING_ON, MS_RLSD_ON,
+        NOPARITY, ODDPARITY, ONE5STOPBITS, ONESTOPBIT, PURGE_RXABORT, PURGE_RXCLEAR, PURGE_TXABORT,
+        PURGE_TXCLEAR, PurgeComm, SETDTR, SETRTS, SetCommBreak, SetCommTimeouts, TWOSTOPBITS,
     },
     Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, HANDLE, INVALID_HANDLE_VALUE},
     Storage::FileSystem::{CreateFileW, FILE_FLAG_OVERLAPPED, OPEN_EXISTING},
@@ -25,9 +26,9 @@ use crate::{
 pub struct COMPort {
     path: String,
     handle: HANDLE,
-    r_overlap: OVERLAPPED,
-    w_overlap: OVERLAPPED,
 }
+
+unsafe impl Send for COMPort {}
 
 impl COMPort {
     pub fn open(builder: &SerialPortBuilder) -> Result<COMPort> {
@@ -63,30 +64,20 @@ impl COMPort {
         dcb::set_parity(&mut dcb, builder.parity)?;
         dcb::set_stop_bits(&mut dcb, builder.stop_bits)?;
         dcb::set_flow_control(&mut dcb, builder.flow_control)?;
-        dcb::set_dcb(handle, dcb)?;
+        dcb::set_dcb(handle, dcb).inspect_err(|_| unsafe {
+            CloseHandle(handle);
+        })?;
 
-        let r_event = unsafe { CreateEventW(null_mut(), 1, 0, null()) };
-        let w_event = unsafe { CreateEventW(null_mut(), 1, 0, null()) };
-
-        if r_event == 0 as HANDLE || w_event == 0 as HANDLE {
-            unsafe {
-                CloseHandle(r_event as *mut _);
-                CloseHandle(w_event as *mut _);
-            }
+        let mut timeout = COMMTIMEOUTS::default();
+        timeout.ReadIntervalTimeout = u32::MAX;
+        if unsafe { SetCommTimeouts(handle, &timeout) } == 0 {
+            unsafe { CloseHandle(handle) };
             return Err(Error::last_os_error().into());
         }
-
-        let mut r_overlap: OVERLAPPED = unsafe { std::mem::zeroed() };
-        let mut w_overlap: OVERLAPPED = unsafe { std::mem::zeroed() };
-
-        r_overlap.hEvent = r_event;
-        w_overlap.hEvent = w_event;
 
         Ok(COMPort {
             path: builder.path.to_owned(),
             handle: handle as HANDLE,
-            r_overlap,
-            w_overlap,
         })
     }
 
@@ -107,12 +98,12 @@ impl COMPort {
     }
 }
 
-unsafe impl Send for COMPort {}
-
 impl Drop for COMPort {
     fn drop(&mut self) {
         unsafe {
             CloseHandle(self.handle);
+            CloseHandle(self.r_overlap.hEvent as *mut _);
+            CloseHandle(self.w_overlap.hEvent as *mut _);
         }
     }
 }
