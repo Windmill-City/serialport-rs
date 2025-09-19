@@ -9,7 +9,7 @@ use crate::{DataBits, FlowControl, Parity, Result, StopBits};
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum DtrControl {
+pub(crate) enum DtrControl {
     Disable = 0x00,
     Enable = 0x01,
     Handshake = 0x02,
@@ -17,7 +17,7 @@ pub enum DtrControl {
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum RtsControl {
+pub(crate) enum RtsControl {
     Disable = 0x00,
     Enable = 0x01,
     Handshake = 0x02,
@@ -25,7 +25,7 @@ pub enum RtsControl {
 }
 
 #[allow(non_snake_case, dead_code)]
-pub trait BitOperation {
+pub(crate) trait BitOperation {
     fn set_fBinary(&mut self, value: bool);
     fn set_fParity(&mut self, value: bool);
     fn set_fOutxCtsFlow(&mut self, value: bool);
@@ -171,7 +171,7 @@ impl BitOperation for DCB {
     }
 }
 
-pub fn default(dcb: &mut DCB) {
+pub(crate) fn default(dcb: &mut DCB) {
     dcb.XonChar = 0x11;
     dcb.XoffChar = 0x13;
     dcb.ErrorChar = 0x00;
@@ -186,7 +186,7 @@ pub fn default(dcb: &mut DCB) {
     dcb.set_fAbortOnError(false);
 }
 
-pub fn get_dcb(handle: HANDLE) -> Result<DCB> {
+pub(crate) fn get_dcb(handle: HANDLE) -> Result<DCB> {
     let mut dcb = DCB::default();
     dcb.DCBlength = std::mem::size_of::<DCB>() as u32;
 
@@ -197,7 +197,7 @@ pub fn get_dcb(handle: HANDLE) -> Result<DCB> {
     }
 }
 
-pub fn set_dcb(handle: HANDLE, mut dcb: DCB) -> Result<()> {
+pub(crate) fn set_dcb(handle: HANDLE, mut dcb: DCB) -> Result<()> {
     if unsafe { SetCommState(handle, &mut dcb as *mut _) != 0 } {
         Ok(())
     } else {
@@ -205,11 +205,11 @@ pub fn set_dcb(handle: HANDLE, mut dcb: DCB) -> Result<()> {
     }
 }
 
-pub fn set_baud_rate(dcb: &mut DCB, baud_rate: u32) {
+pub(crate) fn set_baud_rate(dcb: &mut DCB, baud_rate: u32) {
     dcb.BaudRate = baud_rate;
 }
 
-pub fn set_data_bits(dcb: &mut DCB, data_bits: DataBits) -> Result<()> {
+pub(crate) fn set_data_bits(dcb: &mut DCB, data_bits: DataBits) -> Result<()> {
     dcb.ByteSize = match data_bits {
         DataBits::Five => 5,
         DataBits::Six => 6,
@@ -220,7 +220,7 @@ pub fn set_data_bits(dcb: &mut DCB, data_bits: DataBits) -> Result<()> {
     Ok(())
 }
 
-pub fn set_parity(dcb: &mut DCB, parity: Parity) -> Result<()> {
+pub(crate) fn set_parity(dcb: &mut DCB, parity: Parity) -> Result<()> {
     dcb.Parity = match parity {
         Parity::None => NOPARITY,
         Parity::Odd => ODDPARITY,
@@ -232,7 +232,7 @@ pub fn set_parity(dcb: &mut DCB, parity: Parity) -> Result<()> {
     Ok(())
 }
 
-pub fn set_stop_bits(dcb: &mut DCB, stop_bits: StopBits) -> Result<()> {
+pub(crate) fn set_stop_bits(dcb: &mut DCB, stop_bits: StopBits) -> Result<()> {
     dcb.StopBits = match stop_bits {
         StopBits::One => ONESTOPBIT,
         StopBits::Two => TWOSTOPBITS,
@@ -242,7 +242,7 @@ pub fn set_stop_bits(dcb: &mut DCB, stop_bits: StopBits) -> Result<()> {
     Ok(())
 }
 
-pub fn set_flow_control(dcb: &mut DCB, flow_control: FlowControl) -> Result<()> {
+pub(crate) fn set_flow_control(dcb: &mut DCB, flow_control: FlowControl) -> Result<()> {
     match flow_control {
         FlowControl::None => {
             dcb.set_fOutxCtsFlow(false);
