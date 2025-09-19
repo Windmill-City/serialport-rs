@@ -56,6 +56,7 @@ impl COMPort {
             return Err(Error::last_os_error().into());
         }
 
+        // Wrap the handle first to ensure it get closed if any error occurs
         let com = COMPort {
             path: builder.path.to_owned(),
             handle: handle as HANDLE,
