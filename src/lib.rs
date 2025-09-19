@@ -6,7 +6,7 @@ use std::{
 #[cfg(unix)]
 mod posix;
 #[cfg(unix)]
-pub use posix::{BreakDuration, TTYPort};
+pub use posix::TTYPort;
 
 #[cfg(windows)]
 mod windows;
