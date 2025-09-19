@@ -68,13 +68,6 @@ impl COMPort {
             CloseHandle(handle);
         })?;
 
-        let mut timeout = COMMTIMEOUTS::default();
-        timeout.ReadIntervalTimeout = u32::MAX;
-        if unsafe { SetCommTimeouts(handle, &timeout) } == 0 {
-            unsafe { CloseHandle(handle) };
-            return Err(Error::last_os_error().into());
-        }
-
         Ok(COMPort {
             path: builder.path.to_owned(),
             handle: handle as HANDLE,
