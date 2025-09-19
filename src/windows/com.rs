@@ -2,20 +2,19 @@ use std::{
     io::Error,
     mem::MaybeUninit,
     os::windows::prelude::{AsRawHandle, IntoRawHandle, RawHandle},
-    ptr::{null, null_mut},
+    ptr::null_mut,
     u32,
 };
 
 use windows_sys::Win32::{
     Devices::Communication::{
-        CLRDTR, CLRRTS, COMMTIMEOUTS, ClearCommBreak, ClearCommError, EVENPARITY,
-        EscapeCommFunction, GetCommModemStatus, MS_CTS_ON, MS_DSR_ON, MS_RING_ON, MS_RLSD_ON,
-        NOPARITY, ODDPARITY, ONE5STOPBITS, ONESTOPBIT, PURGE_RXABORT, PURGE_RXCLEAR, PURGE_TXABORT,
-        PURGE_TXCLEAR, PurgeComm, SETDTR, SETRTS, SetCommBreak, SetCommTimeouts, TWOSTOPBITS,
+        CLRDTR, CLRRTS, ClearCommBreak, ClearCommError, EVENPARITY, EscapeCommFunction,
+        GetCommModemStatus, MS_CTS_ON, MS_DSR_ON, MS_RING_ON, MS_RLSD_ON, NOPARITY, ODDPARITY,
+        ONE5STOPBITS, ONESTOPBIT, PURGE_RXABORT, PURGE_RXCLEAR, PURGE_TXABORT, PURGE_TXCLEAR,
+        PurgeComm, SETDTR, SETRTS, SetCommBreak, TWOSTOPBITS,
     },
     Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, HANDLE, INVALID_HANDLE_VALUE},
     Storage::FileSystem::{CreateFileW, FILE_FLAG_OVERLAPPED, OPEN_EXISTING},
-    System::{IO::OVERLAPPED, Threading::CreateEventW},
 };
 
 use crate::{

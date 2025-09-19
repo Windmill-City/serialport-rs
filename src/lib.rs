@@ -184,3 +184,24 @@ pub fn available_ports() -> Result<Vec<PortInfo>> {
     #[cfg(not(any(unix, windows)))]
     Err(Error::NotImplemented)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{available_ports, new};
+
+    #[test]
+    #[ignore = "manual"]
+    fn test_available_ports() {
+        println!("{:#?}", available_ports())
+    }
+
+    #[test]
+    #[ignore = "manual"]
+    fn test_open_close() {
+        let builder = new("COM11", 115200);
+        match builder.open() {
+            Ok(serial) => drop(serial),
+            Err(err) => println!("{}", err),
+        }
+    }
+}
