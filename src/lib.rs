@@ -1,7 +1,4 @@
-use std::{
-    io,
-    os::windows::io::{AsRawHandle, IntoRawHandle},
-};
+use std::{io, os::windows::io::AsRawHandle};
 
 #[cfg(unix)]
 mod posix;
@@ -10,6 +7,7 @@ pub use posix::TTYPort;
 
 #[cfg(windows)]
 mod windows;
+use tokio::io::{AsyncRead, AsyncWrite};
 #[cfg(windows)]
 pub use windows::COMPort;
 
@@ -130,7 +128,7 @@ impl SerialPortBuilder {
     }
 }
 
-pub trait SerialPort: Send + AsRawHandle + IntoRawHandle {
+pub trait SerialPort: Send + AsyncRead + AsyncWrite + AsRawHandle {
     fn name(&self) -> String;
     fn baudrate(&self) -> Result<u32>;
     fn data_bits(&self) -> Result<DataBits>;
