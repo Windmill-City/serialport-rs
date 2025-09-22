@@ -116,15 +116,9 @@ impl SerialPortBuilder {
         self
     }
 
-    pub fn open(self) -> Result<Box<dyn SerialPort>> {
-        #[cfg(unix)]
-        return posix::TTYPort::open(&self).map(|p| Box::new(p) as Box<dyn SerialPort>);
-
-        #[cfg(windows)]
-        return windows::COMPort::open(&self).map(|p| Box::new(p) as Box<dyn SerialPort>);
-
-        #[cfg(not(any(unix, windows)))]
-        Err(Error::NotImplemented)
+    #[cfg(windows)]
+    pub fn open(self) -> Result<COMPort> {
+        return windows::COMPort::open(&self);
     }
 }
 
