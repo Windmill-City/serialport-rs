@@ -215,7 +215,7 @@ pub(crate) fn set_data_bits(dcb: &mut DCB, data_bits: DataBits) -> Result<()> {
         DataBits::Six => 6,
         DataBits::Seven => 7,
         DataBits::Eight => 8,
-        _ => return Err(crate::Error::InvalidInput("DataBits::Unknown".to_owned())),
+        _ => return Err(crate::Error::InvalidArgument("DataBits::Unknown".to_owned())),
     };
     Ok(())
 }
@@ -225,7 +225,7 @@ pub(crate) fn set_parity(dcb: &mut DCB, parity: Parity) -> Result<()> {
         Parity::None => NOPARITY,
         Parity::Odd => ODDPARITY,
         Parity::Even => EVENPARITY,
-        _ => return Err(crate::Error::InvalidInput("Parity::Unknown".to_owned())),
+        _ => return Err(crate::Error::InvalidArgument("Parity::Unknown".to_owned())),
     };
 
     dcb.set_fParity(parity != Parity::None);
@@ -237,7 +237,7 @@ pub(crate) fn set_stop_bits(dcb: &mut DCB, stop_bits: StopBits) -> Result<()> {
         StopBits::One => ONESTOPBIT,
         StopBits::Two => TWOSTOPBITS,
         StopBits::OnePointFive => ONE5STOPBITS,
-        _ => return Err(crate::Error::InvalidInput("StopBits::Unknown".to_owned())),
+        _ => return Err(crate::Error::InvalidArgument("StopBits::Unknown".to_owned())),
     };
     Ok(())
 }
@@ -262,7 +262,7 @@ pub(crate) fn set_flow_control(dcb: &mut DCB, flow_control: FlowControl) -> Resu
             dcb.set_fOutX(false);
             dcb.set_fInX(false);
         }
-        _ => return Err(crate::Error::InvalidInput("StopBits::Unknown".to_owned())),
+        _ => return Err(crate::Error::InvalidArgument("StopBits::Unknown".to_owned())),
     }
     Ok(())
 }

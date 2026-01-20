@@ -15,8 +15,8 @@ pub use windows::COMPort;
 pub enum Error {
     #[error(transparent)]
     Io(#[from] io::Error),
-    #[error("Invalid input: {0}")]
-    InvalidInput(String),
+    #[error("InvalidArgument: {0}")]
+    InvalidArgument(String),
     #[error("Not implemented for target platform")]
     NotImplemented,
 }
